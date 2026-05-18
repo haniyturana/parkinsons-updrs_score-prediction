@@ -1,6 +1,6 @@
 # Parkinson's Disease UPDRS Score Prediction using Voice Features
 
-This repository contains a machine learning pipeline designed to predict the **Unified Parkinson’s Disease Rating Scale (UPDRS)** score of patients using linear and time-frequency based voice features. The pipeline implements and compares three regularization and dimensionality reduction techniques: **Ridge Regression**, **LASSO Regression**, and **Principal Component Regression (PCR)**.
+This repository contains a machine learning pipeline designed to predict the **Unified Parkinson’s Disease Rating Scale (UPDRS)** score of patients using linear and time-frequency based voice features. The pipeline implements and compares multiple regression techniques: **Lasso Regression**, **Ridge Regression**, **Principal Component Regression (PCR)**, **Random Forest**, and **XGBoost**.
 
 ---
 
@@ -13,7 +13,7 @@ The dataset includes biometric voice recordings from **40 individuals** (20 diag
 
 ### Attribute Information:
 * **Column 1:** Subject ID (`SubjectID`)
-* **Columns 2–27 (26 Acoustic Features):**
+* **Columns 2–27 (26 Speech Features):**
   * **Jitter Variants (1–5):** Local, Local (Absolute), Rap, PPQ5, DDP (Measures of pitch period variations).
   * **Shimmer Variants (6–11):** Local, Local (dB), APQ3, APQ5, APQ11, DDA (Measures of amplitude variations).
   * **Harmonicity Parameters (12–14):** AC (Autocorrelation), NTH (Noise-to-Harmonic), HTN (Harmonic-to-Noise).
@@ -26,31 +26,38 @@ The dataset includes biometric voice recordings from **40 individuals** (20 diag
 ---
 
 ## 🛠️ Pipeline Architecture
-To address high feature correlation and protect against multiple vocal replicates clustered per subject, the dataset executes the following processing stages:
+To combat the data characteristics (high feature correlation and multiple vocal replicates clustered per subject), the pipeline executes the following stages:
 
-1. **Feature Standardization:** Uses `StandardScaler` to normalize the scales of various physical sound units (Hz, dB, counts, percentages) prior to applying cost-regularization steps.
-2. **Group-Aware Validation:** Utilizes a `GroupKFold` strategy paired with a grid-search engine (`GridSearchCV`, `RidgeCV`, `LassoCV`) on `SubjectID` to guarantee that voice samples belonging to the same individual do not cross-contaminate both the training and evaluation steps during tuning.
-3. **Hyperparameter Optimization:** Automatically iterates over hyperparameter spaces to locate optimal cost penalties ($\alpha$).
-4. **Dimensionality Reduction (PCR):** Leverages a scikit-learn `Pipeline` pairing Principal Component Analysis (`PCA`) directly with an Ordinary Least Squares (`LinearRegression`) core.
+1. **Feature Standardization:** Uses `StandardScaler` to normalize the scales of various physical sound units (Hz, dB, counts, percentages) prior to applying regression models.
+2. **Group-Aware Validation:** Employs a `GroupKFold` strategy nested within `GridSearchCV` on `SubjectID`. This ensures that voice samples belonging to the same individual do not cross-contaminate both the training and test sets during validation.
+3. **Hyperparameter Tuning:** Automatically evaluates penalty factors ($\alpha$) and estimator properties to identify the configurations that minimize Mean Squared Error (MSE).
 
 ---
 
 ## 📈 Experimental Results & Discussion
 
 ### Model Evaluation
-Models were cross-validated and assessed across training partitions (to diagnose fit stability) and unseen testing partitions using Mean Squared Error (MSE) and $R^2$ statistics:
+The models were trained and evaluated across training partitions (to diagnose overfitting trends) and unseen test partitions. Below is the summary of the performance metrics achieved:
 
-| Machine Learning Model | Optimal Hyperparameters | Test Mean Squared Error (MSE) | Test $R^2$ Score | Train $R^2$ Score |
-| :--- | :--- | :--- | :--- | :--- |
-| **LASSO Regression** | $\alpha = 0.0933$ *(via LassoCV)* | `124.6934` | `0.5855` | `0.6482` |
-| **Ridge Regression** | $\alpha = 10.0$ *(via RidgeCV)* | `125.1098` | `0.5841` | `0.6558` |
-| **PCR (PCA + OLS)** | $n\_components = 7$ *(95% Variance)* | `131.2589` | `0.5637` | `0.6277` |
+| Model | Train MSE | Test MSE | MSE Diff | Model Status | Test $R^2$ Score | Interpretation |
+| :--- | :---: | :---: | :---: | :--- | :---: | :--- |
+| **Lasso** | 225.58 | 256.08 | 30.50 | Slightly Overfit | `1%` | Almost no predictive power |
+| **Ridge** | 212.82 | 258.00 | 45.18 | Moderately Overfit | `1%` | Almost no predictive power |
+| **PCR** | 214.16 | 265.54 | 51.38 | Overfit | `-2%` | Almost no predictive power |
+| **Random Forest** | 192.94 | 234.89 | 41.95 | Moderately Overfit | `9%` | Weak but slightly improved |
+| **XGBoost** | 90.91 | 228.62 | 137.71 | Severely Overfit | `10%` | Weak but slightly improved |
 
 ### Key Takeaways & Discussion:
-* **Feature Multicollinearity:** The acoustic data structure (especially repetitive Jitter and Shimmer calculations) exhibits massive multicollinearity. Standard OLS models without penalty factors overfit significantly under these conditions.
-* **L1 vs. L2 Regularization Effectiveness:** **LASSO Regression** yielded the highest performance metrics, minimizing testing error down to a **Test MSE of 124.6934** and explaining the greatest degree of unseen variance (**Test $R^2$: 0.5855**). Because LASSO deploys an L1 penalty, it successfully drops non-impactful or highly collinear coefficient weights to absolute zero, operating as an automated feature selector.
-* **PCR Representation:** Principal Component Regression successfully captures variance by consolidating the 26 metrics into orthogonal components. Retaining only **7 principal components** (representing 95% of explained variance) effectively eliminates multi-variable inflation while producing competitive testing accuracy.
-* **Core Limitation Summary:** Evaluation metrics across all models suggest that performance boundaries are primarily capped by the informativeness and noise levels of the voice features rather than limitations in the linear modeling approaches. Further development should emphasize feature engineering or adding complementary clinical predictors.
+* **Severe Generalization Challenges:** Linear models with regularization (Lasso and Ridge) struggled heavily to model the dataset, explaining only roughly **1%** of the target variance ($R^2 = 0.01$). This indicates that the direct relationships between standard acoustic metrics and the complex clinical UPDRS score are largely non-linear.
+* **Non-Linear Model Gains & Overfitting:** Non-linear tree-based ensembles (**Random Forest** and **XGBoost**) managed to push the variance explained up to **9% and 10%** respectively. However, XGBoost suffered from severe overfitting (with a massive MSE gap of `137.71`), meaning it memorized noise within the training subset rather than extracting generalized patterns.
+* **Feature Quality Constraints:** Based on the study, the primary performance bottleneck is not the choice of algorithm, but rather the **quality and informativeness of the available voice features**. The acoustic features extracted may contain high levels of ambient/recording noise or lack the medical signal complexity needed to capture the structural variations of a clinical UPDRS score.
+
+---
+
+## 💡 Conclusion & Future Recommendations
+* **Shift to Feature Engineering:** Future work should redirect focus away from hyperparameter tuning and instead focus on advanced **feature engineering**.
+* **Alternative Representations:** Incorporating deep learning embeddings (e.g., mel-spectrogram features processed via CNNs or Wav2Vec models) might capture hidden voice markers better than simple linear temporal/pitch statistics.
+* **Inclusion of Clinical Predictors:** Adding multi-modal markers, such as non-voice clinical variables or demographic details, could provide more informative predictors to stabilize the target mapping.
 
 ---
 
