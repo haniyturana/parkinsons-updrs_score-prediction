@@ -65,3 +65,15 @@ The models were trained and evaluated across training partitions (to diagnose ov
 * **Language:** Python 3.x
 * **Core Libraries:** `scikit-learn`, `pandas`, `numpy`, `matplotlib`, `seaborn`, `xgboost`
 * **Development Environment:** Jupyter Notebook
+
+---
+
+## Reproducible Script Usage
+The notebook remains the primary report and the results table above keeps the original notebook metrics. For reproducible reruns, use the companion script:
+
+```bash
+pip install -r requirements.txt
+python parkinson_updrs_modeling.py
+```
+
+The script writes `outputs/model_metrics.csv`, `outputs/test_predictions.csv`, `outputs/model_test_mse.png`, and `outputs/best_model_actual_vs_predicted.png`. Add `--include-xgboost` if you want to include the optional XGBoost model in a rerun.
