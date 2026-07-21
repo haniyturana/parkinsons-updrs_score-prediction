@@ -1,0 +1,7 @@
+pandas>=2.2
+scikit-learn>=1.5
+matplotlib>=3.9
+seaborn>=0.13
+
+# Optional: install this only when using `python parkinson_updrs_modeling.py --include-xgboost`.
+# xgboost>=2.1
